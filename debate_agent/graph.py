@@ -24,14 +24,19 @@ llm = ChatOpenAI(base_url="http://127.0.0.1:1234/v1", model="google/gemma-3-12b"
 def plato_agent(state: DebateState) -> DebateState:
   print("Plato is thinking...")
 
+  SYSTEM_PROMPT = f"You are Plato, a philosopher in a debate. Arguing FOR this position {state['topic']}. Keep responses to a maximum of 3 sentences."
+
   history = '\n'.join([f"{m.type}: {m.content}" for m in state["messages"][-4:]])
-  r = llm.invoke([SystemMessage(content=f"You are Plato, a philosopher in a debate. Arguing FOR this position {state['topic']}. Keep responses to a maximum of 3 sentences."), HumanMessage(content=f"Conversation History: {history}")])
+  r = llm.invoke([SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=f"Conversation History: {history}")])
   return {"messages": [AIMessage(content=f"Plato's Argument: {r.content}")], "round": state["round"] + 1}
 
 def aristotle_agent(state: DebateState) -> DebateState:
   print("Aristotle is thinking...")
+
+  SYSTEM_PROMPT = f"You are Aristotle, a philosopher in a debate. Arguing AGAINST this position {state['topic']}. Keep responses to a maximum of 3 sentences."
+
   history = '\n'.join([f"{m.type}: {m.content}" for m in state["messages"][-4:]])
-  r = llm.invoke([SystemMessage(content=f"You are Aristotle, a philosopher in a debate. Arguing AGAINST this position {state['topic']}. Keep responses to a maximum of 3 sentences."), HumanMessage(content=f"Conversation History: {history}")])
+  r = llm.invoke([SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=f"Conversation History: {history}")])
   return {"messages": [AIMessage(content=f"Aristotle's Argument: {r.content}")], "round": state["round"] + 1}
 
 def judge_agent(state: DebateState) -> DebateState:
@@ -39,11 +44,19 @@ def judge_agent(state: DebateState) -> DebateState:
   plato_history = '\n'.join([f"{m.type}: {m.content}" for m in state["messages"] if "Plato's Argument" in m.content])
   aristotle_history = '\n'.join([f"{m.type}: {m.content}" for m in state["messages"] if "Aristotle's Argument" in m.content])
 
-  SYSTEM_PROMPT = f"You are a judge in a debate. The topic is {state['topic']}. Here is the conversation history: {plato_history} {aristotle_history}. Plato and Aristotle take turns during their arguement so take that into account. Please provide a verdict and scores for each side."
+  SYSTEM_PROMPT = """ You are a neutral academic debate judge. " 
+                   Judge argument quality only, not the topic. Always return a verdict and reason. 
+                   Set should_continue=True unless one side has made a clearly decisive argument.
+                     The debate should usually last 3-5 rounds. """
+
+  HUMAN_PROMPT = f""" Topic: {state['topic']}\n\n
+                  Plato (FOR):\n{plato_history}\n\n
+                  Aristotle (AGAINST):\n{aristotle_history}\n\n
+                  Who made the stronger argument? Provide a verdict and the reasoning."""
 
   r = llm.with_structured_output(JudgeResult).invoke([
-    SystemMessage(content="You are a neutral academic debate judge. Judge argument quality only, not the topic. Always return a verdict and reason. Set should_continue=True unless one side has made a clearly decisive argument. The debate should usually last 3-5 rounds."),
-    HumanMessage(content=f"Topic: {state['topic']}\n\nPlato (FOR):\n{plato_history}\n\nAristotle (AGAINST):\n{aristotle_history}\n\nWho made the stronger argument? Provide a verdict and the reasoning.")
+    SystemMessage(content=SYSTEM_PROMPT),
+    HumanMessage(content=HUMAN_PROMPT)
   ])
 
   verdict = f"Winner: {r.winner}\nReason: {r.reason}" if not r.should_continue else ""
