@@ -11,12 +11,12 @@ class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
     count: int
 
-llm = ChatOpenAI(base_url="http://127.0.0.1:1234/v1", model="openai/gpt-oss-20b", api_key="sk-lm-2PGULx4r:xvKyZEs7oqhtIJSlDFwv")
+llm = ChatOpenAI(base_url="http://127.0.0.1:1234/v1", model="google/gemma-3-12b")
 llm = llm.bind_tools(TOOLS)
 
-SYSTEM_PROMPT = "Just use the tools!"
-
 def llm_node(state: AgentState) -> AgentState:
+
+    SYSTEM_PROMPT = "Just use the tools!"
     messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
     response = llm.invoke(messages)
 
@@ -46,7 +46,6 @@ def should_continue(state: AgentState) -> Literal["tool_node", END]:
     messages = state["messages"]
     last_message = messages[-1]
 
-
     if last_message.tool_calls:
         print(f"[ROUTER] Going to tool node")
         return "tool"
@@ -64,6 +63,7 @@ def build_graph():
         should_continue,
         ["tool", END]
     )
+
     builder.add_edge("tool", "llm")
 
     return builder.compile()

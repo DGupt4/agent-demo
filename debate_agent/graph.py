@@ -19,7 +19,7 @@ class JudgeResult(BaseModel):
   reason: str
   should_continue: bool
 
-llm = ChatOpenAI(base_url="http://127.0.0.1:1234/v1", model="google/gemma-3-12b", api_key="sk-lm-2PGULx4r:xvKyZEs7oqhtIJSlDFwv")
+llm = ChatOpenAI(base_url="http://127.0.0.1:1234/v1", model="google/gemma-3-12b")
 
 def plato_agent(state: DebateState) -> DebateState:
   print("Plato is thinking...")
